@@ -1,0 +1,45 @@
+name: Collecte & export (gratuit)
+
+# Rafraichit les donnees toutes les 6h (cron GitHub gratuit) + bouton manuel.
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch: {}
+
+# Autorise le job a committer les donnees regenerees
+permissions:
+  contents: write
+
+# Evite deux runs simultanes qui se marcheraient dessus
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installer les dependances
+        run: pip install -r backend/requirements.txt
+
+      - name: Collecte + export statique
+        working-directory: backend
+        run: python -m app.collect_once
+
+      - name: Commit des donnees mises a jour
+        run: |
+          git config user.name "pulse-bot"
+          git config user.email "actions@github.com"
+          git add backend/data_storage/posts.db frontend/public/data frontend/public/reports
+          if git diff --cached --quiet; then
+            echo "Aucun changement."
+          else
+            git commit -m "data: rafraichissement auto $(date -u +%Y-%m-%dT%H:%MZ)"
+            git push
+          fi

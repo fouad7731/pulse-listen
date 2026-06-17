@@ -6,8 +6,10 @@ backend/.venv/
 __pycache__/
 *.pyc
 
-# Base de donnees locale (sur Railway : volume persistant)
-backend/data_storage/
+# Base de donnees : on versionne posts.db comme "graine" (mode statique gratuit),
+# la GitHub Action la met a jour. On ignore le reste du dossier.
+backend/data_storage/*
+!backend/data_storage/posts.db
 
 # Node / Next
 frontend/node_modules/

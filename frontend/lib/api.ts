@@ -121,27 +121,74 @@ function qs(params: Record<string, string | number | undefined>): string {
   return parts.length ? `?${parts.join("&")}` : "";
 }
 
-export const fetchThemes = () => get<Theme[]>("/themes");
+// ----- Mode STATIQUE (hebergement gratuit : donnees pre-generees) -----
+// Active si NEXT_PUBLIC_STATIC=1. Le frontend charge un bundle unique
+// (data/data.json) et y pioche, au lieu d'appeler une API live.
+const STATIC = process.env.NEXT_PUBLIC_STATIC === "1";
+const k = (v?: string) => v || "all";        // cle de combinaison
+const tk = (t?: string, c?: string) => `${k(t)}|${k(c)}`;
+
+type Bundle = {
+  themes: Theme[];
+  countries: string[];
+  overview: Record<string, Overview>;
+  alerts: Record<string, AlertsResponse>;
+  timeline: Record<string, TimelinePoint[]>;
+  trend: Record<string, Trend>;
+  forecast: Record<string, Forecast>;
+  top_posts: Record<string, TopPost[]>;
+  keywords: Record<string, KeywordStat[]>;
+};
+
+let _bundle: Promise<Bundle> | null = null;
+function bundle(): Promise<Bundle> {
+  if (!_bundle) {
+    _bundle = fetch("/data/data.json", { cache: "no-store" }).then((r) => {
+      if (!r.ok) throw new Error(`bundle -> ${r.status}`);
+      return r.json();
+    });
+  }
+  return _bundle;
+}
+
+export const fetchThemes = () =>
+  STATIC ? bundle().then((b) => b.themes) : get<Theme[]>("/themes");
 export const fetchOverview = (country?: string) =>
-  get<Overview>(`/overview${qs({ country })}`);
+  STATIC
+    ? bundle().then((b) => b.overview[k(country)])
+    : get<Overview>(`/overview${qs({ country })}`);
 export const fetchTimeline = (theme?: string, country?: string) =>
-  get<TimelinePoint[]>(`/timeline${qs({ theme, country })}`);
+  STATIC
+    ? bundle().then((b) => b.timeline[tk(theme, country)] ?? [])
+    : get<TimelinePoint[]>(`/timeline${qs({ theme, country })}`);
 export const fetchTrend = (theme?: string, country?: string) =>
-  get<Trend>(`/trend${qs({ theme, country })}`);
+  STATIC
+    ? bundle().then((b) => b.trend[tk(theme, country)])
+    : get<Trend>(`/trend${qs({ theme, country })}`);
 export const fetchForecast = (theme?: string, country?: string) =>
-  get<Forecast>(`/forecast${qs({ theme, country })}`);
+  STATIC
+    ? bundle().then((b) => b.forecast[tk(theme, country)])
+    : get<Forecast>(`/forecast${qs({ theme, country })}`);
 export const fetchTopPosts = (theme?: string, limit = 15, country?: string) =>
-  get<TopPost[]>(`/top-posts${qs({ theme, country, limit })}`);
+  STATIC
+    ? bundle().then((b) => b.top_posts[tk(theme, country)] ?? [])
+    : get<TopPost[]>(`/top-posts${qs({ theme, country, limit })}`);
 export const fetchAlerts = (country?: string) =>
-  get<AlertsResponse>(`/alerts${qs({ country })}`);
+  STATIC
+    ? bundle().then((b) => b.alerts[k(country)])
+    : get<AlertsResponse>(`/alerts${qs({ country })}`);
 export const fetchKeywords = (theme?: string, limit = 12, country?: string) =>
-  get<KeywordStat[]>(`/keywords${qs({ theme, country, limit })}`);
+  STATIC
+    ? bundle().then((b) => b.keywords[tk(theme, country)] ?? [])
+    : get<KeywordStat[]>(`/keywords${qs({ theme, country, limit })}`);
 export const fetchSources = () => get<SourcesResponse>("/sources");
 export const fetchCountries = () => get<CountriesResponse>("/countries");
 
-// URL directe du rapport PDF (le navigateur le telecharge)
+// URL du rapport PDF : statique pre-genere, ou endpoint live.
 export const reportUrl = (theme?: string, country?: string) =>
-  `${API}/report${qs({ theme, country })}`;
+  STATIC
+    ? `/reports/${k(theme)}__${k(country)}.pdf`
+    : `${API}/report${qs({ theme, country })}`;
 
 export function formatPct(n: number): string {
   return `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
