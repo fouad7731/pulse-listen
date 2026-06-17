@@ -20,3 +20,4 @@ frontend/tsconfig.tsbuildinfo
 # Divers
 .DS_Store
 *.local
+.vercel
