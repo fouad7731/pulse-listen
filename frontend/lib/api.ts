@@ -139,6 +139,10 @@ export const fetchKeywords = (theme?: string, limit = 12, country?: string) =>
 export const fetchSources = () => get<SourcesResponse>("/sources");
 export const fetchCountries = () => get<CountriesResponse>("/countries");
 
+// URL directe du rapport PDF (le navigateur le telecharge)
+export const reportUrl = (theme?: string, country?: string) =>
+  `${API}/report${qs({ theme, country })}`;
+
 export function formatPct(n: number): string {
   return `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
 }

@@ -12,6 +12,7 @@ import {
   fetchTopPosts,
   fetchTrend,
   formatPct,
+  reportUrl,
   type Alert,
   type Forecast,
   type KeywordStat,
@@ -200,6 +201,14 @@ export default function Dashboard() {
               </option>
             ))}
           </select>
+          <a
+            href={reportUrl(theme || undefined, country || undefined)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90"
+          >
+            Rapport PDF
+          </a>
         </div>
       </header>
 

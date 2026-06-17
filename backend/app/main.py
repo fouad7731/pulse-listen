@@ -12,15 +12,17 @@ Endpoints :
     GET /top-posts?theme=&country=   posts les plus engageants
     GET /keywords?theme=&country=    mots-cles (sujets boissons) les plus presents
     GET /alerts?country=       pics de part de voix + bascules de sentiment
+    GET /report?theme=&country=      rapport PDF telechargeable
 """
 from __future__ import annotations
 
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 
 from . import scheduler
 from .data import storage, zones
-from .ml import aggregate, alerts
+from .ml import aggregate, alerts, report
 
 app = FastAPI(title="Pulse Listen API", version="1.1.0")
 
@@ -116,3 +118,21 @@ def keywords(
 @app.get("/alerts")
 def get_alerts(country: str | None = Query(default=None)) -> dict:
     return alerts.summary(country)
+
+
+@app.get("/report")
+def report_pdf(
+    theme: str | None = Query(default=None),
+    country: str | None = Query(default=None),
+) -> Response:
+    pdf_bytes = report.build_pdf(country, theme)
+    stamp = "pulse-listen-rapport"
+    if country:
+        stamp += f"-{country}"
+    if theme:
+        stamp += f"-{theme}"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{stamp}.pdf"'},
+    )
