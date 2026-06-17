@@ -16,13 +16,13 @@ from fpdf import FPDF
 from ..data import zones
 from . import aggregate, alerts
 
-# Couleurs marque (WyExpert teal)
-TEAL = (8, 159, 153)
-DARK = (10, 46, 44)
-GREEN = (46, 204, 113)
-RED = (239, 68, 68)
-GRAY = (148, 163, 184)
-LIGHT = (240, 244, 244)
+# Charte Pulse by Coca-Cola
+TEAL = (244, 0, 9)       # rouge Coca (accent) - nom conserve pour compat
+DARK = (26, 26, 26)      # slate (barre d'entete + titres)
+GREEN = (31, 157, 85)    # sentiment positif
+RED = (244, 0, 9)        # sentiment negatif / alerte (rouge Coca)
+GRAY = (107, 107, 107)   # texte secondaire
+LIGHT = (247, 241, 232)  # creme (fond des KPI)
 
 _COUNTRY_LABELS = {
     "global": "Global (Bluesky)",
