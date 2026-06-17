@@ -1,0 +1,20 @@
+# Logs (partout)
+*.log
+
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+
+# Base de donnees locale (sur Railway : volume persistant)
+backend/data_storage/
+
+# Node / Next
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/tsconfig.tsbuildinfo
+
+# Divers
+.DS_Store
+*.local
