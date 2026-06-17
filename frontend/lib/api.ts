@@ -125,6 +125,10 @@ function qs(params: Record<string, string | number | undefined>): string {
 // Active si NEXT_PUBLIC_STATIC=1. Le frontend charge un bundle unique
 // (data/data.json) et y pioche, au lieu d'appeler une API live.
 const STATIC = process.env.NEXT_PUBLIC_STATIC === "1";
+// Base des donnees statiques. Vide = meme origine (build Vercel). En prod on
+// pointe vers le repo public (raw GitHub), que la GitHub Action rafraichit
+// toutes les 6h -> le site se met a jour SANS redeploiement.
+const DATA_BASE = process.env.NEXT_PUBLIC_DATA_BASE ?? "";
 const k = (v?: string) => v || "all";        // cle de combinaison
 const tk = (t?: string, c?: string) => `${k(t)}|${k(c)}`;
 
@@ -143,7 +147,7 @@ type Bundle = {
 let _bundle: Promise<Bundle> | null = null;
 function bundle(): Promise<Bundle> {
   if (!_bundle) {
-    _bundle = fetch("/data/data.json", { cache: "no-store" }).then((r) => {
+    _bundle = fetch(`${DATA_BASE}/data/data.json`, { cache: "no-store" }).then((r) => {
       if (!r.ok) throw new Error(`bundle -> ${r.status}`);
       return r.json();
     });
@@ -187,7 +191,7 @@ export const fetchCountries = () => get<CountriesResponse>("/countries");
 // URL du rapport PDF : statique pre-genere, ou endpoint live.
 export const reportUrl = (theme?: string, country?: string) =>
   STATIC
-    ? `/reports/${k(theme)}__${k(country)}.pdf`
+    ? `${DATA_BASE}/reports/${k(theme)}__${k(country)}.pdf`
     : `${API}/report${qs({ theme, country })}`;
 
 export function formatPct(n: number): string {
