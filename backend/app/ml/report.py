@@ -67,9 +67,8 @@ class _Report(FPDF):
         self.set_text_color(*GRAY)
         self.cell(
             0, 5,
-            "Sources : Bluesky (parole sociale) + Google News RSS (couverture "
-            "mediatique). Sentiment : VADER (local). Page "
-            + str(self.page_no()),
+            "Sources : Bluesky + Google News RSS. Sentiment : VADER (anglais) / "
+            "lexique francais. Page " + str(self.page_no()),
             align="C",
         )
 

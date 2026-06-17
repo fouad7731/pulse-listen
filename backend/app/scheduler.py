@@ -26,7 +26,7 @@ BLUESKY_INTERVAL_H = int(os.getenv("PULSE_BLUESKY_INTERVAL_H", "6"))
 NEWS_INTERVAL_H = int(os.getenv("PULSE_NEWS_INTERVAL_H", "6"))
 
 # Pays collectes pour les News (editions Google News reelles)
-NEWS_COUNTRIES = ["US", "GB", "CA", "AU"]
+NEWS_COUNTRIES = ["US", "GB", "CA", "AU", "FR"]
 
 _scheduler: BackgroundScheduler | None = None
 # Evite deux collectes simultanees (Bluesky + News qui se chevauchent)

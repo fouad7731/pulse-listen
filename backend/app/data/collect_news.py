@@ -33,23 +33,26 @@ from urllib.parse import quote_plus
 import requests
 
 from . import storage, zones
-from .sentiment import analyze_text
+from .sentiment import analyze
+from .sentiment_fr import _fold
 
 RSS_BASE = "https://news.google.com/rss/search"
 
-# Editions Google News par pays : (code_pays, gl, ceid). hl reste en anglais
-# (VADER = anglais) ; seul le marche mediatique (gl/ceid) change.
-COUNTRIES: dict[str, tuple[str, str]] = {
-    "US": ("US", "US:en"),   # Etats-Unis
-    "GB": ("GB", "GB:en"),   # Royaume-Uni
-    "CA": ("CA", "CA:en"),   # Canada
-    "AU": ("AU", "AU:en"),   # Australie
+# Editions Google News par pays : (gl, ceid, hl, lang).
+# Pour FR on passe en francais (hl=fr, ceid=FR:fr) + sentiment francais.
+COUNTRIES: dict[str, tuple[str, str, str, str]] = {
+    "US": ("US", "US:en", "en-US", "en"),   # Etats-Unis
+    "GB": ("GB", "GB:en", "en-GB", "en"),   # Royaume-Uni
+    "CA": ("CA", "CA:en", "en-CA", "en"),   # Canada
+    "AU": ("AU", "AU:en", "en-AU", "en"),   # Australie
+    "FR": ("FR", "FR:fr", "fr",    "fr"),   # France (francais)
 }
 DEFAULT_COUNTRIES = ["US", "GB", "CA"]
 
+# Patterns pour matcher les mots-cles EN et FR, sur base ASCII (accents replies)
 _KEYWORD_PATTERNS: dict[str, re.Pattern] = {
-    kw.lower(): re.compile(r"\b" + re.escape(kw.lower()) + r"\b")
-    for t in zones.THEMES for kw in t.keywords
+    _fold(kw.lower()): re.compile(r"\b" + re.escape(_fold(kw.lower())) + r"\b")
+    for t in zones.THEMES for kw in (t.keywords + t.keywords_fr)
 }
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; pulse-listen/1.0)"}
@@ -63,8 +66,9 @@ def _clean(text: str) -> str:
 
 
 def _matches_keyword(text: str, keyword: str) -> bool:
-    pattern = _KEYWORD_PATTERNS.get(keyword.lower())
-    return bool(pattern.search(text.lower())) if pattern else True
+    # comparaison sur base ASCII (accents replies) pour matcher "santé" via "sante"
+    pattern = _KEYWORD_PATTERNS.get(_fold(keyword.lower()))
+    return bool(pattern.search(_fold(text.lower()))) if pattern else True
 
 
 def _to_iso(pub_date: str) -> str:
@@ -74,7 +78,8 @@ def _to_iso(pub_date: str) -> str:
         return ""
 
 
-def _parse_item(item: ET.Element, keyword: str, theme: str, country: str) -> dict | None:
+def _parse_item(item: ET.Element, keyword: str, theme: str, country: str,
+                lang: str = "en") -> dict | None:
     title = _clean(item.findtext("title", ""))
     link = item.findtext("link", "") or ""
     source_el = item.find("source")
@@ -95,7 +100,7 @@ def _parse_item(item: ET.Element, keyword: str, theme: str, country: str) -> dic
         "author_handle": media,
         "text": text,
         "created_at": _to_iso(item.findtext("pubDate", "")),
-        "lang": zones.LANG,
+        "lang": lang,
         "like_count": 0,
         "repost_count": 0,
         "reply_count": 0,
@@ -107,8 +112,8 @@ def _parse_item(item: ET.Element, keyword: str, theme: str, country: str) -> dic
 
 
 def fetch_keyword(keyword: str, theme: str, limit: int, country: str = "US") -> list[dict]:
-    gl, ceid = COUNTRIES.get(country, ("US", "US:en"))
-    url = f"{RSS_BASE}?q={quote_plus(keyword)}&hl=en-US&gl={gl}&ceid={ceid}"
+    gl, ceid, hl, lang = COUNTRIES.get(country, ("US", "US:en", "en-US", "en"))
+    url = f"{RSS_BASE}?q={quote_plus(keyword)}&hl={hl}&gl={gl}&ceid={ceid}"
     try:
         resp = requests.get(url, headers=HEADERS, timeout=20)
     except requests.RequestException as e:
@@ -126,7 +131,7 @@ def fetch_keyword(keyword: str, theme: str, limit: int, country: str = "US") -> 
 
     out = []
     for item in root.iter("item"):
-        parsed = _parse_item(item, keyword, theme, country)
+        parsed = _parse_item(item, keyword, theme, country, lang)
         if parsed:
             out.append(parsed)
         if len(out) >= limit:
@@ -139,25 +144,27 @@ def collect_all(limit: int = 30, countries: list[str] | None = None) -> int:
     countries = countries or DEFAULT_COUNTRIES
     total_fetched = 0
     total_inserted = 0
-    n = len(zones.ALL_QUERIES)
     print(
-        f"[collect_news] {n} mots-cles x {len(countries)} pays "
+        f"[collect_news] {len(countries)} pays "
         f"({', '.join(countries)}) via Google News RSS\n"
     )
 
     for country in countries:
-        print(f"--- Pays : {country} ---", flush=True)
-        for i, (keyword, theme) in enumerate(zones.ALL_QUERIES, 1):
+        lang = COUNTRIES.get(country, ("", "", "", "en"))[3]
+        queries = zones.queries_for_lang(lang)
+        n = len(queries)
+        print(f"--- Pays : {country} (lang={lang}) ---", flush=True)
+        for i, (keyword, theme) in enumerate(queries, 1):
             posts = fetch_keyword(keyword, theme, limit, country)
             total_fetched += len(posts)
             for p in posts:
-                label, score = analyze_text(p["text"])
+                label, score = analyze(p["text"], lang)
                 p["sentiment_label"] = label
                 p["sentiment_score"] = score
             inserted = storage.save_posts(posts)
             total_inserted += inserted
             print(
-                f"[{country}][{i:>2}/{n}] {keyword:<18} theme={theme:<12} "
+                f"[{country}][{i:>2}/{n}] {keyword:<22} theme={theme:<12} "
                 f"recup={len(posts):>3}  nouveaux={inserted:>3}",
                 flush=True,
             )

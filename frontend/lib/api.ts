@@ -153,6 +153,7 @@ const COUNTRY_LABELS: Record<string, string> = {
   GB: "Royaume-Uni",
   CA: "Canada",
   AU: "Australie",
+  FR: "France",
 };
 
 export function countryLabel(code: string): string {
